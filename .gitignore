@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+dist/
+dist_installer/
+dist_debug/
+build/
+build_debug/
+*.spec
+!VisualizadorCadari.spec
+!debug.spec
+.venv/
+venv/
+.pytest_cache/
+exemplos_relatorio/

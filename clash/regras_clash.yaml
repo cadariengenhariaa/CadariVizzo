@@ -1,0 +1,239 @@
+disciplinas:
+- ARQ
+- EST
+- HID
+- ELE
+- CLIM
+- PCI
+- GAS
+- TEL
+- SPDA
+- OUTRO
+tolerancia_hard_clash_m: 0.01
+folga_padrao_m: 0.05
+matriz_disciplinas:
+  ARQ|EST:
+    testar: false
+    folga_m: 0.0
+  ARQ|HID:
+    testar: false
+    folga_m: 0.0
+  ARQ|ELE:
+    testar: false
+    folga_m: 0.0
+  ARQ|CLIM:
+    testar: false
+    folga_m: 0.0
+  ARQ|PCI:
+    testar: false
+    folga_m: 0.0
+  ARQ|GAS:
+    testar: false
+    folga_m: 0.0
+  ARQ|TEL:
+    testar: false
+    folga_m: 0.0
+  ARQ|SPDA:
+    testar: false
+    folga_m: 0.0
+  EST|HID:
+    testar: false
+    folga_m: 0.0
+  EST|ELE:
+    testar: false
+    folga_m: 0.0
+  EST|CLIM:
+    testar: false
+    folga_m: 0.0
+  EST|PCI:
+    testar: false
+    folga_m: 0.0
+  EST|GAS:
+    testar: false
+    folga_m: 0.0
+  EST|TEL:
+    testar: false
+    folga_m: 0.0
+  EST|SPDA:
+    testar: false
+    folga_m: 0.0
+  CLIM|HID:
+    testar: false
+    folga_m: 0.05
+  ELE|HID:
+    testar: false
+    folga_m: 0.1
+  HID|PCI:
+    testar: false
+    folga_m: 0.05
+  GAS|HID:
+    testar: false
+    folga_m: 0.3
+  HID|TEL:
+    testar: false
+    folga_m: 0.05
+  CLIM|ELE:
+    testar: false
+    folga_m: 0.05
+  ELE|PCI:
+    testar: false
+    folga_m: 0.05
+  ELE|GAS:
+    testar: false
+    folga_m: 0.3
+  ELE|TEL:
+    testar: false
+    folga_m: 0.1
+  CLIM|PCI:
+    testar: false
+    folga_m: 0.05
+  CLIM|GAS:
+    testar: false
+    folga_m: 0.2
+  CLIM|TEL:
+    testar: false
+    folga_m: 0.05
+  GAS|PCI:
+    testar: false
+    folga_m: 0.3
+  PCI|TEL:
+    testar: false
+    folga_m: 0.05
+  GAS|TEL:
+    testar: false
+    folga_m: 0.3
+  ELE|SPDA:
+    testar: false
+    folga_m: 0.0
+severidade:
+- quando:
+    disciplina_a: EST
+  nivel: Critica
+- quando:
+    par:
+    - HID
+    - CLIM
+    tipo: hard
+  nivel: Alta
+- quando:
+    disciplina_a: ELE
+    disciplina_b: ARQ
+    tipo: hard
+  nivel: Baixa
+- quando:
+    tipo: duplicado
+  nivel: Media
+- quando: {}
+  nivel: Media
+ordem_rigidez_disciplinas:
+- EST
+- SPDA
+- ARQ
+- GAS
+- PCI
+- HID
+- CLIM
+- ELE
+- TEL
+exclusoes:
+  ignorar_furos_previstos: true
+  ignorar_mesmo_sistema_conectado: true
+  ignorar_isolamento_proprio_duto: true
+  guids_aceitos_manualmente: []
+duplicados:
+  distancia_centro_m: 0.02
+  tolerancia_volume_pct: 2.0
+mapeamento_disciplina:
+  padroes_caminho_arquivo:
+    -ARQ[-/\\]: ARQ
+    -EST[-/\\]: EST
+    -HID[-/\\]: HID
+    -ELE[-/\\]: ELE
+    -CLIM[-/\\]: CLIM
+    -AVAC[-/\\]: CLIM
+    -PCI[-/\\]: PCI
+    -INC[-/\\]: PCI
+    -GAS[-/\\]: GAS
+    -TEL[-/\\]: TEL
+    -SPDA[-/\\]: SPDA
+  propriedade_disciplina_pset:
+  - Disciplina
+  - Discipline
+  predefinedtype_sistema:
+    DOMESTICCOLDWATER: HID
+    DOMESTICHOTWATER: HID
+    SEWAGE: HID
+    DRAINAGE: HID
+    DISPOSAL: HID
+    WASTEWATER: HID
+    STORMWATER: HID
+    RAINWATER: HID
+    WATERSUPPLY: HID
+    VENT: HID
+    FIREPROTECTION: PCI
+    AIRCONDITIONING: CLIM
+    CHILLEDWATER: CLIM
+    CONDENSERWATER: CLIM
+    HEATING: CLIM
+    VENTILATION: CLIM
+    EXHAUST: CLIM
+    REFRIGERATION: CLIM
+    POWERGENERATION: ELE
+    ELECTRICAL: ELE
+    LIGHTING: ELE
+    COMMUNICATION: TEL
+    DATA: TEL
+    SIGNAL: TEL
+    SECURITY: TEL
+    TELEPHONE: TEL
+    TV: TEL
+    AUDIOVISUAL: TEL
+    ELECTROACOUSTIC: TEL
+    FUEL: GAS
+    GAS: GAS
+    EARTHING: SPDA
+    LIGHTNINGPROTECTION: SPDA
+  classe_ifc:
+    IfcWall: ARQ
+    IfcWallStandardCase: ARQ
+    IfcSlab: EST
+    IfcColumn: EST
+    IfcBeam: EST
+    IfcFooting: EST
+    IfcPile: EST
+    IfcRoof: ARQ
+    IfcDoor: ARQ
+    IfcWindow: ARQ
+    IfcCurtainWall: ARQ
+    IfcStair: ARQ
+    IfcRailing: ARQ
+    IfcCovering: ARQ
+    IfcFurniture: ARQ
+    IfcPipeSegment: HID
+    IfcPipeFitting: HID
+    IfcSanitaryTerminal: HID
+    IfcValve: HID
+    IfcPump: HID
+    IfcTank: HID
+    IfcDuctSegment: CLIM
+    IfcDuctFitting: CLIM
+    IfcAirTerminal: CLIM
+    IfcAirTerminalBox: CLIM
+    IfcUnitaryEquipment: CLIM
+    IfcChiller: CLIM
+    IfcBoiler: CLIM
+    IfcFan: CLIM
+    IfcCoil: CLIM
+    IfcCableSegment: ELE
+    IfcCableCarrierSegment: ELE
+    IfcCableCarrierFitting: ELE
+    IfcOutlet: ELE
+    IfcLamp: ELE
+    IfcLightFixture: ELE
+    IfcSwitchingDevice: ELE
+    IfcElectricAppliance: ELE
+    IfcElectricDistributionBoard: ELE
+    IfcTransformer: ELE
+    IfcFireSuppressionTerminal: PCI
+    IfcAlarm: PCI
+    IfcCommunicationsAppliance: TEL

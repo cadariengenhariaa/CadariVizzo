@@ -1,0 +1,22 @@
+PyMuPDF
+Pillow
+openpyxl
+ifcopenshell
+vtk
+
+# Detecção de interferências (clash) entre disciplinas
+trimesh
+python-fcl
+manifold3d
+rtree
+reportlab
+PyYAML
+
+# Dashboard (gráficos)
+matplotlib
+
+# Corretor ortográfico (português)
+pyspellchecker
+
+# Testes automatizados (clash/)
+pytest

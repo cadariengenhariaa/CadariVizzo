@@ -1,0 +1,231 @@
+# =====================================================================
+# Regras de Detecção de Interferências (Clash Detection)
+# =====================================================================
+# Este arquivo é versionado junto com o código e editável pela tela
+# "⚠ Clash Detection ▸ Regras" do app. Valores marcados como
+# "padrão a validar pela equipe" são estimativas razoáveis de mercado,
+# NÃO uma exigência normativa — a equipe de projeto deve revisar e
+# ajustar para a realidade de cada obra/norma aplicável antes de confiar
+# cegamente no relatório gerado.
+
+# Vocabulário de disciplinas usado pelo motor de clash. É mais granular
+# que o `LISTA_DISCIPLINAS` usado nas issues manuais (config.py) porque
+# esta checagem exige diferenciar, por exemplo, Hidrossanitário de Gás e
+# de Combate a Incêndio — os dois fluxos (issue manual x clash) são
+# independentes de propósito.
+disciplinas:
+  - ARQ    # Arquitetura/Interiores
+  - EST    # Estrutura
+  - HID    # Hidrossanitário (água fria/quente, esgoto, pluvial)
+  - ELE    # Elétrica
+  - CLIM   # Climatização/HVAC
+  - PCI    # Combate a incêndio (PPCI/sprinklers/hidrantes)
+  - GAS    # Gás
+  - TEL    # Telecom/Dados
+  - SPDA   # Sistema de Proteção contra Descargas Atmosféricas
+  - OUTRO  # disciplina não identificada — o elemento É listado, nunca ignorado
+
+# Tolerância de hard clash: penetrações menores que isto (em metros) são
+# ignoradas (ruído de modelagem/arredondamento geométrico, não uma
+# interferência real).
+# padrão a validar pela equipe
+tolerancia_hard_clash_m: 0.010
+
+# Folga mínima usada quando o par de disciplinas não está listado em
+# `matriz_disciplinas` abaixo.
+# padrão a validar pela equipe
+folga_padrao_m: 0.05
+
+# Matriz disciplina x disciplina: define quais pares são testados e, se
+# testados, qual a folga mínima exigida (metros) para configurar "soft
+# clash" (folga insuficiente). A chave é sempre as duas disciplinas em
+# ordem alfabética separadas por "|". Pares ausentes aqui ainda são
+# testados (testar=true) usando `folga_padrao_m`, a menos que
+# explicitamente marcados com testar:false.
+# Todos os valores de folga abaixo são "padrão a validar pela equipe".
+matriz_disciplinas:
+  "ARQ|EST": {testar: true, folga_m: 0.00}
+  "ARQ|HID": {testar: true, folga_m: 0.00}
+  "ARQ|ELE": {testar: true, folga_m: 0.00}
+  "ARQ|CLIM": {testar: true, folga_m: 0.00}
+  "ARQ|PCI": {testar: true, folga_m: 0.00}
+  "ARQ|GAS": {testar: true, folga_m: 0.00}
+  "ARQ|TEL": {testar: true, folga_m: 0.00}
+  "ARQ|SPDA": {testar: true, folga_m: 0.00}
+  "EST|HID": {testar: true, folga_m: 0.00}
+  "EST|ELE": {testar: true, folga_m: 0.00}
+  "EST|CLIM": {testar: true, folga_m: 0.00}
+  "EST|PCI": {testar: true, folga_m: 0.00}
+  "EST|GAS": {testar: true, folga_m: 0.00}
+  "EST|TEL": {testar: true, folga_m: 0.00}
+  "EST|SPDA": {testar: true, folga_m: 0.00}
+  "CLIM|HID": {testar: true, folga_m: 0.05}
+  "ELE|HID": {testar: true, folga_m: 0.10}    # afastamento água x elétrica
+  "HID|PCI": {testar: true, folga_m: 0.05}
+  "GAS|HID": {testar: true, folga_m: 0.30}    # afastamento mínimo de tubulação de gás
+  "HID|TEL": {testar: true, folga_m: 0.05}
+  "CLIM|ELE": {testar: true, folga_m: 0.05}
+  "ELE|PCI": {testar: true, folga_m: 0.05}
+  "ELE|GAS": {testar: true, folga_m: 0.30}
+  "ELE|TEL": {testar: true, folga_m: 0.10}    # interferência eletromagnética
+  "CLIM|PCI": {testar: true, folga_m: 0.05}
+  "CLIM|GAS": {testar: true, folga_m: 0.20}
+  "CLIM|TEL": {testar: true, folga_m: 0.05}
+  "GAS|PCI": {testar: true, folga_m: 0.30}
+  "PCI|TEL": {testar: true, folga_m: 0.05}
+  "GAS|TEL": {testar: true, folga_m: 0.30}
+  "ELE|SPDA": {testar: true, folga_m: 0.00}
+
+# Severidade: avaliada em ordem — a primeira regra cujas condições
+# baterem vence. A última regra (quando: {}) é o catch-all e deve ficar
+# sempre por último. Ajuste a política livremente; isto não é norma.
+severidade:
+  - quando: {disciplina_a: "EST"}
+    nivel: "Critica"      # estrutura x qualquer = crítica
+  - quando: {par: ["HID", "CLIM"], tipo: "hard"}
+    nivel: "Alta"         # ex.: tubo de esgoto (com caimento) x duto
+  - quando: {disciplina_a: "ELE", disciplina_b: "ARQ", tipo: "hard"}
+    nivel: "Baixa"        # ex.: eletroduto x forro
+  - quando: {tipo: "duplicado"}
+    nivel: "Media"
+  - quando: {}
+    nivel: "Media"        # padrão quando nenhuma regra específica bateu
+
+# Ordem de rigidez das disciplinas (da mais rígida para a mais
+# flexível). O responsável sugerido pela correção é sempre a disciplina
+# mais flexível do par — Estrutura e SPDA raramente se movem.
+ordem_rigidez_disciplinas:
+  - EST
+  - SPDA
+  - ARQ
+  - GAS
+  - PCI
+  - HID
+  - CLIM
+  - ELE
+  - TEL
+
+# Regras de exclusão automática (não gera clash, ou gera já marcado como
+# aceito/justificado).
+exclusoes:
+  ignorar_furos_previstos: true         # IfcOpening/IfcVoidingFeature e sleeves conhecidos
+  ignorar_mesmo_sistema_conectado: true  # elementos do mesmo IfcSystem já conectados entre si
+  ignorar_isolamento_proprio_duto: true  # camada de isolamento sobre o próprio tubo/duto
+  guids_aceitos_manualmente: []          # preenchido pela tela de edição de regras / status "Aceito"
+
+# Duplicados: dois elementos quase na mesma posição/geometria.
+duplicados:
+  distancia_centro_m: 0.02     # padrão a validar pela equipe
+  tolerancia_volume_pct: 2.0   # % de diferença de volume ainda considerada "igual"
+
+# Inferência de disciplina por elemento — ver clash/disciplinas.py para
+# a ordem de prioridade entre estas fontes.
+mapeamento_disciplina:
+  # 1ª prioridade: padrão (regex, case-insensitive) no caminho do IFC de
+  # origem — os arquivos desta empresa já costumam vir organizados em
+  # pastas por disciplina (ex.: ".../1386-ARQ/...", ".../1386-HID/...").
+  padroes_caminho_arquivo:
+    '-ARQ[-/\\]': ARQ
+    '-EST[-/\\]': EST
+    '-HID[-/\\]': HID
+    '-ELE[-/\\]': ELE
+    '-CLIM[-/\\]': CLIM
+    '-AVAC[-/\\]': CLIM
+    '-PCI[-/\\]': PCI
+    '-INC[-/\\]': PCI
+    '-GAS[-/\\]': GAS
+    '-TEL[-/\\]': TEL
+    '-SPDA[-/\\]': SPDA
+
+  # 2ª prioridade: nome de propriedade (em qualquer Pset) que carregue a
+  # disciplina explicitamente.
+  propriedade_disciplina_pset:
+    - "Disciplina"
+    - "Discipline"
+
+  # 3ª prioridade: PredefinedType do IfcSystem/IfcDistributionSystem ao
+  # qual o elemento está associado. As chaves são exatamente os valores
+  # de IfcDistributionSystemEnum (IFC4) — valores ambíguos/genéricos
+  # demais para inferir disciplina com segurança (ex.: CONTROL, OPERATIONAL,
+  # HAZARDOUS, USERDEFINED) ficam de fora de propósito e caem no fallback
+  # por classe IFC.
+  predefinedtype_sistema:
+    DOMESTICCOLDWATER: HID
+    DOMESTICHOTWATER: HID
+    SEWAGE: HID
+    DRAINAGE: HID
+    DISPOSAL: HID
+    WASTEWATER: HID
+    STORMWATER: HID
+    RAINWATER: HID
+    WATERSUPPLY: HID
+    VENT: HID               # ventilação de esgoto (tubulação), não confundir com VENTILATION (HVAC)
+    FIREPROTECTION: PCI
+    AIRCONDITIONING: CLIM
+    CHILLEDWATER: CLIM
+    CONDENSERWATER: CLIM
+    HEATING: CLIM
+    VENTILATION: CLIM
+    EXHAUST: CLIM
+    REFRIGERATION: CLIM
+    POWERGENERATION: ELE
+    ELECTRICAL: ELE
+    LIGHTING: ELE
+    COMMUNICATION: TEL
+    DATA: TEL
+    SIGNAL: TEL
+    SECURITY: TEL
+    TELEPHONE: TEL
+    TV: TEL
+    AUDIOVISUAL: TEL
+    ELECTROACOUSTIC: TEL
+    FUEL: GAS
+    GAS: GAS
+    EARTHING: SPDA
+    LIGHTNINGPROTECTION: SPDA
+
+  # 4ª prioridade (fallback final): classe IFC do próprio elemento.
+  classe_ifc:
+    IfcWall: ARQ
+    IfcWallStandardCase: ARQ
+    IfcSlab: EST
+    IfcColumn: EST
+    IfcBeam: EST
+    IfcFooting: EST
+    IfcPile: EST
+    IfcRoof: ARQ
+    IfcDoor: ARQ
+    IfcWindow: ARQ
+    IfcCurtainWall: ARQ
+    IfcStair: ARQ
+    IfcRailing: ARQ
+    IfcCovering: ARQ
+    IfcFurniture: ARQ
+    IfcPipeSegment: HID
+    IfcPipeFitting: HID
+    IfcSanitaryTerminal: HID
+    IfcValve: HID
+    IfcPump: HID
+    IfcTank: HID
+    IfcDuctSegment: CLIM
+    IfcDuctFitting: CLIM
+    IfcAirTerminal: CLIM
+    IfcAirTerminalBox: CLIM
+    IfcUnitaryEquipment: CLIM
+    IfcChiller: CLIM
+    IfcBoiler: CLIM
+    IfcFan: CLIM
+    IfcCoil: CLIM
+    IfcCableSegment: ELE
+    IfcCableCarrierSegment: ELE
+    IfcCableCarrierFitting: ELE
+    IfcOutlet: ELE
+    IfcLamp: ELE
+    IfcLightFixture: ELE
+    IfcSwitchingDevice: ELE
+    IfcElectricAppliance: ELE
+    IfcElectricDistributionBoard: ELE
+    IfcTransformer: ELE
+    IfcFireSuppressionTerminal: PCI
+    IfcAlarm: PCI
+    IfcCommunicationsAppliance: TEL
