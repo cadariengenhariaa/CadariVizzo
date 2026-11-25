@@ -6,7 +6,7 @@ from tkinter import ttk
 
 from PIL import ImageTk
 
-from auth import visual_login
+from auth import sessao, visual_login
 from ui import preferencias
 
 from auth.usuarios import (
@@ -438,6 +438,7 @@ class DialogLogin(_TelaVidro):
                 return
 
         registrar_login(usuario)
+        sessao.criar_sessao(usuario)  # continua conectado até clicar em "Sair"
         salvar_usuarios(self.usuarios)
         preferencias.salvar(lembrar_usuario=self.lembrar.get(),
                             ultimo_usuario=usuario["nome_usuario"] if self.lembrar.get() else "")

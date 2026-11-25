@@ -186,6 +186,7 @@ def trocar_senha(usuario, senha_nova):
     usuario["senha_hash"] = hash_
     usuario["senha_salt"] = salt
     usuario["deve_trocar_senha"] = False
+    usuario["sessoes"] = []  # senha nova derruba as sessões salvas (auth/sessao.py)
 
 
 def resetar_para_senha_temporaria(usuario):
@@ -197,6 +198,7 @@ def resetar_para_senha_temporaria(usuario):
     usuario["senha_hash"] = hash_
     usuario["senha_salt"] = salt
     usuario["deve_trocar_senha"] = True
+    usuario["sessoes"] = []  # reset do admin desconecta a conta em todos os computadores
     return senha_temporaria
 
 
