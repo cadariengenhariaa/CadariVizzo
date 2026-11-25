@@ -1,7 +1,14 @@
 """Ponto de entrada do Visualizador Cadari de Projetos."""
-from app import AppCDE
+import sys
+
+from instancia_unica import garantir_instancia_unica
+
 
 if __name__ == "__main__":
+    if not garantir_instancia_unica():
+        sys.exit(0)
+    from app import AppCDE
+
     app = AppCDE()
     if app.usuario_atual is not None:
         app.mainloop()
