@@ -16,6 +16,7 @@ import sys
 
 NOME_MUTEX = "Local\\CadariVizzo_InstanciaUnica"
 TITULO_JANELA = "Cadari Vizzo — Visualizador de Projetos"  # igual a AppCDE.title()
+TITULO_LOGIN = "Entrar — Cadari Vizzo"  # igual a DialogLogin._iniciar_vidro(...)
 
 _ERROR_ALREADY_EXISTS = 183
 _SW_RESTORE = 9
@@ -45,26 +46,36 @@ def adquirir(nome_mutex: str = NOME_MUTEX) -> bool:
     return True
 
 
-def focar_instancia_existente(titulo: str = TITULO_JANELA) -> bool:
-    """Tenta trazer a janela já aberta para a frente. True se encontrou."""
+def focar_instancia_existente(titulos=None) -> bool:
+    """Tenta trazer para a frente uma janela VISÍVEL da instância aberta
+    (a principal ou a de login). True se conseguiu.
+
+    Atenção: durante o login a janela principal já existe com o título
+    definitivo, porém escondida (withdraw). Focar uma janela invisível não
+    mostra nada ao usuário — por isso só contam janelas visíveis; se não
+    houver nenhuma, quem chama mostra o aviso."""
     if sys.platform != "win32":
         return False
     import ctypes
 
     user32 = ctypes.windll.user32
-    hwnd = user32.FindWindowW(None, titulo)
-    if not hwnd:
-        return False
-    if user32.IsIconic(hwnd):
-        user32.ShowWindow(hwnd, _SW_RESTORE)
-    user32.SetForegroundWindow(hwnd)
-    return True
+    for titulo in titulos or (TITULO_JANELA, TITULO_LOGIN):
+        hwnd = user32.FindWindowW(None, titulo)
+        if not hwnd or not user32.IsWindowVisible(hwnd):
+            continue
+        if user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, _SW_RESTORE)
+        user32.SetForegroundWindow(hwnd)
+        return True
+    return False
 
 
 def avisar_ja_aberto() -> None:
     """Aviso nativo (sem criar janela Tk) de que o app já está aberto."""
     msg = ("O Cadari Vizzo já está aberto.\n\n"
-           "Use a janela existente — não é possível abrir duas ao mesmo tempo.")
+           "Use a janela existente — não é possível abrir duas ao mesmo tempo.\n\n"
+           "Se nenhuma janela aparecer, encerre \"CadariVizzo\" no Gerenciador "
+           "de Tarefas (Ctrl+Shift+Esc) e abra de novo.")
     if sys.platform == "win32":
         import ctypes
         MB_ICONINFORMATION, MB_TOPMOST = 0x40, 0x40000
