@@ -15,7 +15,7 @@ SELOS_DIR = r"Z:\Biblioteca\Padronização\Cadari\SELOS"  # selos de aprovação
 # "Ajuda e suporte" (barra lateral) abre o formulário de abertura de chamados da Cadari
 CHAMADOS_EXE = r"Z:\Biblioteca\Padronização\Cadari\Executaveis\Abertura de Chamados.exe"
 EMAIL_ADMIN_INICIAL = "ti@cadariengenharia.com.br"  # bootstrap: vira administrador no 1º uso do app
-NOME_USUARIO_ADMIN_INICIAL = "brunoconstantino"  # login (nome de usuário) da conta criada no bootstrap
+NOME_USUARIO_ADMIN_INICIAL = "Bruno"  # login (nome de usuário) da conta criada no bootstrap
 
 # Identidade do app "Cadari Vizzo" — empacotada no próprio projeto (não na
 # rede Z:) para funcionar mesmo offline e ir junto no executável gerado.

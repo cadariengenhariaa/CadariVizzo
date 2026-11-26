@@ -65,4 +65,4 @@ def test_banco_de_usuarios_sumido_com_backup_nao_recria(banco):
 def test_primeiro_uso_de_verdade_cria_admin(banco):
     usuarios = []
     assert bootstrap_admin_inicial(usuarios)
-    assert usuarios[0]["nome_usuario"] == config.NOME_USUARIO_ADMIN_INICIAL == "brunoconstantino"
+    assert usuarios[0]["nome_usuario"] == config.NOME_USUARIO_ADMIN_INICIAL == "Bruno"
