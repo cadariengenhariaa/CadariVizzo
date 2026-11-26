@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from tkinter import messagebox
 
+import banco_json
 from config import DB_DIR, DB_FILE
 
 ANOTACOES_FILE = os.path.join(DB_DIR, "db_anotacoes_pdf.json")
@@ -108,16 +109,12 @@ def salvar_banco_dados(issues, ids_base=None):
     deve passar a usá-la), ou a própria lista se a leitura falhar."""
     gravadas = issues
     try:
-        os.makedirs(DB_DIR, exist_ok=True)
         if ids_base is not None and os.path.exists(DB_FILE):
             try:
                 gravadas, _ = mesclar_issues(issues, carregar_banco_dados(silencioso=True), ids_base)
             except Exception:
                 gravadas = issues
-        temporario = DB_FILE + ".tmp"
-        with open(temporario, "w", encoding="utf-8") as f:
-            json.dump(gravadas, f, ensure_ascii=False, indent=4)
-        os.replace(temporario, DB_FILE)  # troca atômica: ninguém lê um arquivo pela metade
+        banco_json.gravar(DB_FILE, gravadas)  # backup + troca atômica; recusa se a rede estiver fora
     except Exception as e:
         messagebox.showerror("Erro de Salvamento", f"Falha ao salvar no banco de dados da rede.\n\nErro: {e}")
     return gravadas
@@ -138,9 +135,7 @@ def carregar_anotacoes():
 
 def salvar_anotacoes(anotacoes):
     try:
-        os.makedirs(DB_DIR, exist_ok=True)
-        with open(ANOTACOES_FILE, "w", encoding="utf-8") as f:
-            json.dump(anotacoes, f, ensure_ascii=False, indent=4)
+        banco_json.gravar(ANOTACOES_FILE, anotacoes)
     except Exception as e:
         messagebox.showerror("Erro de Salvamento", f"Falha ao salvar as marcações na rede.\n\nErro: {e}")
 

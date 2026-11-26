@@ -11,6 +11,7 @@ CLI decide como logar."""
 import json
 import os
 
+import banco_json
 import config
 
 
@@ -26,15 +27,8 @@ def _caminho_padrao():
 
 
 def carregar_clashes(caminho=None):
-    caminho = caminho or _caminho_padrao()
-    if not os.path.exists(caminho):
-        return []
-    with open(caminho, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return banco_json.ler(caminho or _caminho_padrao())
 
 
 def salvar_clashes(clashes, caminho=None):
-    caminho = caminho or _caminho_padrao()
-    os.makedirs(os.path.dirname(caminho), exist_ok=True)
-    with open(caminho, "w", encoding="utf-8") as f:
-        json.dump(clashes, f, ensure_ascii=False, indent=4)
+    banco_json.gravar(caminho or _caminho_padrao(), clashes)

@@ -2,10 +2,11 @@
 de senha (obrigatória após reset, ou voluntária) e a exibição única da
 senha temporária gerada no bootstrap do administrador inicial."""
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 from PIL import ImageTk
 
+import banco_json
 from auth import sessao, visual_login
 from ui import preferencias
 
@@ -278,13 +279,12 @@ class DialogLogin(_TelaVidro):
         largura_tela, altura_tela = self._iniciar_vidro("Entrar — Cadari Vizzo")
         self.usuario = None
 
-        self.usuarios = carregar_usuarios()
         # exposto como atributo (não só usado localmente) para quem
         # instanciar o diálogo poder confirmar se o bootstrap rodou,
         # sem depender do momento em que o after() abaixo dispara.
-        self.senha_bootstrap = bootstrap_admin_inicial(self.usuarios)
-        if self.senha_bootstrap:
-            salvar_usuarios(self.usuarios)
+        self.senha_bootstrap = None
+        self.erro_banco = None  # rede fora / banco sumido: login bloqueado com aviso
+        self._carregar_banco_usuarios()
 
         self.ent_usuario = _entrada_branca(self.canvas)
         self.ent_senha = _entrada_branca(self.canvas, show="•")
@@ -423,7 +423,32 @@ class DialogLogin(_TelaVidro):
             self.ent_senha.focus_set()
             self.lbl_erro.config(fg=COR_SUCESSO_LOGIN, text="Usuário criado! Faça login com a senha que você definiu.")
 
+    def _carregar_banco_usuarios(self):
+        """Lê o banco de usuários e, só se for de fato o 1º uso, cria o
+        administrador inicial. Rede fora ou banco sumido com backups
+        existentes viram `self.erro_banco` — nunca um banco novo."""
+        self.erro_banco = None
+        try:
+            self.usuarios = carregar_usuarios()
+            self.senha_bootstrap = bootstrap_admin_inicial(self.usuarios)
+            if self.senha_bootstrap:
+                salvar_usuarios(self.usuarios)
+        except banco_json.BancoIndisponivel as e:
+            self.usuarios = []
+            self.erro_banco = str(e)
+        except Exception as e:  # JSON corrompido, permissão negada etc.
+            self.usuarios = []
+            self.erro_banco = f"Não foi possível ler o banco de usuários.\n\n{e}"
+        if self.erro_banco:
+            self.after(150, lambda: messagebox.showerror("Banco de dados indisponível", self.erro_banco,
+                                                         parent=self))
+
     def entrar(self):
+        if self.erro_banco:
+            self._carregar_banco_usuarios()  # tenta de novo (rede pode ter voltado)
+            if self.erro_banco:
+                self.lbl_erro.config(fg=COR_ERRO_LOGIN, text="Sem acesso ao banco de dados na rede (Z:).")
+                return
         nome_usuario = self.ent_usuario.get().strip()
         senha = self.ent_senha.get()
         usuario = autenticar(self.usuarios, nome_usuario, senha)
