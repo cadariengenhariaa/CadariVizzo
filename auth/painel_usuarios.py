@@ -448,8 +448,12 @@ class PainelUsuarios(tk.Frame):
             messagebox.showinfo("Sua conta", "Para trocar a sua própria senha, use \"Trocar senha\" no menu do "
                                              "seu nome (barra lateral).")
             return
-        if not messagebox.askyesno("Resetar senha", f"Gerar uma senha temporária para \"{usuario['nome']}\"? "
-                                                    "A pessoa será obrigada a trocá-la no próximo login."):
+        if not self._confirmar_em_duas_etapas(
+                usuario, "Resetar senha",
+                f"Gerar uma senha temporária para \"{usuario['nome']}\"?\n\n"
+                "A senha atual deixa de funcionar, a pessoa é desconectada em todos os "
+                "computadores e terá de trocar a senha no próximo login.",
+                "Resetar senha"):
             return
         senha = resetar_para_senha_temporaria(usuario)
         salvar_usuarios(self.usuarios)
@@ -458,6 +462,17 @@ class PainelUsuarios(tk.Frame):
     def _alternar_ativo(self, usuario):
         if self.app.usuario_atual and self.app.usuario_atual.get("nome_usuario") == usuario["nome_usuario"]:
             messagebox.showerror("Não é possível", "Você não pode desativar a conta com a qual está logado.")
+            return
+        if usuario.get("ativo", True):
+            if not self._confirmar_em_duas_etapas(
+                    usuario, "Desativar conta",
+                    f"Desativar a conta de \"{usuario['nome']}\"?\n\n"
+                    "A pessoa não conseguirá mais entrar no Vizzo até a conta ser reativada. "
+                    "Os problemas atribuídos a ela continuam como estão.",
+                    "Desativar conta"):
+                return
+        elif not messagebox.askyesno("Reativar conta", f"Reativar a conta de \"{usuario['nome']}\"?",
+                                     parent=self.winfo_toplevel()):
             return
         usuario["ativo"] = not usuario.get("ativo", True)
         salvar_usuarios(self.usuarios)
@@ -481,11 +496,11 @@ class PainelUsuarios(tk.Frame):
             "antes de excluir se quiser passá-los para outra pessoa."
             if qtd_problemas else ""
         )
-        if not messagebox.askyesno(
-            "Confirmar exclusão",
-            f"Excluir o usuário \"{usuario['nome']}\" ({nome_usuario})? Essa ação não pode ser desfeita."
-            + aviso_problemas,
-        ):
+        if not self._confirmar_em_duas_etapas(
+                usuario, "Excluir usuário",
+                f"Excluir o usuário \"{usuario['nome']}\" ({nome_usuario})?\n\n"
+                "Essa ação NÃO pode ser desfeita." + aviso_problemas,
+                "Excluir usuário"):
             return
 
         excluir_usuario(self.usuarios, nome_usuario)
@@ -493,6 +508,18 @@ class PainelUsuarios(tk.Frame):
         self._atualizar_lista()
         self._detalhes_vazio()
         messagebox.showinfo("OK", "Usuário excluído.")
+
+    def _confirmar_em_duas_etapas(self, usuario, titulo, mensagem, texto_botao):
+        """Ações sensíveis (resetar senha, desativar, excluir) pedem duas
+        confirmações: 1) Sim/Não com as consequências, já com "Não"
+        selecionado; 2) digitar o nome de usuário da conta. Só confirma
+        se as duas etapas forem aceitas."""
+        if not messagebox.askyesno(f"{titulo} — etapa 1 de 2", mensagem + "\n\nDeseja continuar?",
+                                   icon="warning", default="no", parent=self.winfo_toplevel()):
+            return False
+        dialogo = _DialogConfirmarDigitando(self.winfo_toplevel(), f"{titulo} — etapa 2 de 2",
+                                            usuario["nome_usuario"], texto_botao)
+        return dialogo.confirmado
 
     def _abrir_transferir(self, origem=None):
         if len(self.usuarios) < 2:
@@ -509,6 +536,58 @@ class PainelUsuarios(tk.Frame):
     def sincronizar(self):
         self._atualizar_lista()
         self._mostrar_detalhes()
+
+
+class _DialogConfirmarDigitando(tk.Toplevel):
+    """2ª etapa das ações sensíveis: o botão de confirmar só é liberado
+    depois de digitar exatamente o nome de usuário da conta."""
+
+    def __init__(self, parent, titulo, nome_usuario, texto_botao):
+        super().__init__(parent, bg=TEMA["surface"])
+        self.title(titulo)
+        self.resizable(False, False)
+        self.transient(parent)
+        self.confirmado = False
+        self._esperado = nome_usuario
+
+        corpo = tk.Frame(self, bg=TEMA["surface"])
+        corpo.pack(fill=tk.BOTH, expand=True, padx=24, pady=20)
+        tk.Label(corpo, text="Para confirmar, digite o nome de usuário da conta:", bg=TEMA["surface"],
+                 fg=TEMA["texto"], font=fonte(10), justify="left").pack(anchor="w")
+        tk.Label(corpo, text=nome_usuario, bg=TEMA["surface"], fg=TEMA["critico"],
+                 font=fonte(12, "semi")).pack(anchor="w", pady=(6, 10))
+        self.entrada = tk.Entry(corpo, font=fonte(11), width=34)
+        self.entrada.pack(fill=tk.X)
+        self.entrada.bind("<KeyRelease>", lambda e: self._validar())
+        self.entrada.bind("<Return>", lambda e: self._confirmar())
+        self.bind("<Escape>", lambda e: self.destroy())
+
+        botoes = tk.Frame(corpo, bg=TEMA["surface"])
+        botoes.pack(anchor="e", pady=(16, 0))
+        tk.Button(botoes, text="Cancelar", command=self.destroy, bg=TEMA["surface_alt"], fg=TEMA["texto"],
+                  relief="flat", padx=14, pady=4, cursor="hand2").pack(side=tk.LEFT, padx=(0, 8))
+        self.btn_confirmar = tk.Button(botoes, text=texto_botao, command=self._confirmar, state=tk.DISABLED,
+                                       bg=TEMA["critico"], fg="white", disabledforeground="#f0f0f0",
+                                       relief="flat", padx=14, pady=4, cursor="hand2")
+        self.btn_confirmar.pack(side=tk.LEFT)
+
+        self.update_idletasks()
+        x = parent.winfo_rootx() + (parent.winfo_width() - self.winfo_width()) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - self.winfo_height()) // 3
+        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+        self.entrada.focus_set()
+        self.grab_set()
+        self.wait_window(self)
+
+    def _validar(self):
+        ok = self.entrada.get().strip() == self._esperado
+        self.btn_confirmar.configure(state=tk.NORMAL if ok else tk.DISABLED)
+        return ok
+
+    def _confirmar(self):
+        if self._validar():
+            self.confirmado = True
+            self.destroy()
 
 
 class _DialogTransferirProblemas(tk.Toplevel):
