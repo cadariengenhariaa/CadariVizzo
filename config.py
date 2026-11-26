@@ -14,7 +14,7 @@ PROJETOS_DIR = r"Z:\Projetos\Ativos"  # pasta de cada obra: PROJETOS_DIR\<Nº Ca
 SELOS_DIR = r"Z:\Biblioteca\Padronização\Cadari\SELOS"  # selos de aprovação (imagens) para carimbar pranchas
 # "Ajuda e suporte" (barra lateral) abre o formulário de abertura de chamados da Cadari
 CHAMADOS_EXE = r"Z:\Biblioteca\Padronização\Cadari\Executaveis\Abertura de Chamados.exe"
-EMAIL_ADMIN_INICIAL = "bruno.constantino@cadariengenharia.com.br"  # bootstrap: vira administrador no 1º uso do app
+EMAIL_ADMIN_INICIAL = "ti@cadariengenharia.com.br"  # bootstrap: vira administrador no 1º uso do app
 NOME_USUARIO_ADMIN_INICIAL = "brunoconstantino"  # login (nome de usuário) da conta criada no bootstrap
 
 # Identidade do app "Cadari Vizzo" — empacotada no próprio projeto (não na
