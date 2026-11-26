@@ -3,6 +3,7 @@ quem é do Setor BIM, que entra como Administrador automaticamente, ver
 auth/dialogs.py): listar, excluir conta e transferir os problemas
 ("atribuido_para") de um usuário para outro, para o caso de alguém sair
 da empresa ou entrar de férias."""
+import unicodedata
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -11,7 +12,6 @@ from PIL import Image, ImageDraw, ImageFont, ImageTk
 from auth.dialogs import DialogCriarUsuario, DialogSenhaTemporariaGerada
 from auth.usuarios import (
     NOMES_PAPEIS,
-    PAPEL_ADMINISTRADOR,
     carregar_usuarios,
     excluir_usuario,
     resetar_para_senha_temporaria,
@@ -19,6 +19,7 @@ from auth.usuarios import (
 )
 from config import LISTA_STATUS, TEMA
 from ui.componentes import (
+    FONTE_ICONE,
     Avatar,
     Botao,
     CampoArredondado,
@@ -26,15 +27,20 @@ from ui.componentes import (
     Icone,
     Pilula,
     QuadradoIcone,
-    cabecalho_pagina,
+    cor_fundo_de,
     espacar,
+    fonte,
     iniciais,
     rotulo,
     separador,
+    sobretitulo,
 )
 from utils import transferir_issues_por_id
 
 TODOS = "— Todos —"
+
+# Abaixo desta largura (px) o painel de detalhes desce para baixo da lista.
+LARGURA_EMPILHAR = 1000
 
 
 class PainelUsuarios(tk.Frame):
@@ -48,71 +54,141 @@ class PainelUsuarios(tk.Frame):
         self.app = app
         self.usuarios = carregar_usuarios()
         self._avatares = {}
+        self._ordem_decrescente = False  # lista em ordem alfabética (A→Z) por padrão
+        self._empilhado = None  # layout responsivo: lista e detalhes lado a lado ou empilhados
+        self._botoes_abaixo = None
 
+        self._linha_topo = None
+        self._cabecalho = None
+        self._esconder_busca_projetos()
         self.pagina = tk.Frame(self, bg=TEMA["pagina"])
-        self.pagina.pack(fill=tk.BOTH, expand=True, padx=32, pady=(24, 24))
+        self.pagina.pack(fill=tk.BOTH, expand=True, padx=32, pady=(16, 24))
         self._montar_cabecalho()
-        self.frame_numeros = tk.Frame(self.pagina, bg=TEMA["pagina"])
-        self.frame_numeros.pack(fill=tk.X, pady=(0, 16))
         self._montar_corpo()
         self._atualizar_lista()
 
+    # ---------- busca de projetos (barra superior) ----------
+    def _esconder_busca_projetos(self):
+        """A busca global de projetos da barra superior não serve nesta
+        tela: some enquanto ela estiver aberta e o Ctrl+K passa a focar a
+        busca de contas. Tudo volta ao normal quando a tela é fechada."""
+        barra = getattr(self.app, "barra_topo", None)
+        if barra is None or not hasattr(barra, "busca"):
+            return
+        self._barra_topo = barra
+        self._busca_pack = barra.busca.pack_info() if barra.busca.winfo_manager() else None
+        barra.busca.pack_forget()
+        self._linha_topo = barra.busca.master  # o cabeçalho da tela sobe para esse espaço
+        barra.focar_busca = self._focar_busca_contas
+        self.bind("<Destroy>", self._restaurar_busca_projetos, add="+")
+
+    def _focar_busca_contas(self):
+        self.ent_busca.entry.focus_set()
+        self.ent_busca.entry.select_range(0, tk.END)
+
+    def _restaurar_busca_projetos(self, evento):
+        if evento.widget is not self:
+            return
+        barra = self._barra_topo
+        try:
+            if self._cabecalho is not None and self._cabecalho.winfo_exists():
+                self._cabecalho.destroy()  # é filho da barra superior, não desta tela
+            if not barra.winfo_exists():
+                return
+            del barra.focar_busca  # volta ao método original da classe
+            if self._busca_pack is not None and not barra.busca.winfo_manager():
+                info = {k: v for k, v in self._busca_pack.items() if k != "in"}
+                barra.busca.pack(**info)
+        except (tk.TclError, AttributeError):
+            pass
+
     # ---------- construção ----------
     def _montar_cabecalho(self):
-        cab, direita = cabecalho_pagina(
-            self.pagina, "Administração", "Gerenciar usuários",
-            "Contas de acesso, papéis e transferência de problemas entre a equipe.",
-            migalhas=[("Início", self.app.abrir_tela_home), ("Gerenciar usuários", None)])
-        cab.pack(fill=tk.X, pady=(0, 18))
-        botoes = tk.Frame(direita, bg=TEMA["pagina"])
-        botoes.pack(anchor="e")
-        Botao(botoes, "Transferir problemas", variante="secundario", icone=Icone.TROCAR, altura=34,
-              tamanho_fonte=9, comando=self._abrir_transferir).pack(side=tk.LEFT, padx=(0, 8))
-        Botao(botoes, "Novo usuário", variante="primario", icone=Icone.ADICIONAR_PESSOA, altura=34,
-              tamanho_fonte=9, comando=self._novo_usuario).pack(side=tk.LEFT)
+        """Migalhas, sobretítulo, título e subtítulo — na barra superior,
+        no lugar da busca de projetos — com os botões logo após o
+        subtítulo. Em janela estreita os botões descem para a linha de baixo."""
+        pai = self._linha_topo or self.pagina
+        bg = cor_fundo_de(pai)
+        cab = tk.Frame(pai, bg=bg)
+        if self._linha_topo is not None:
+            cab.pack(side=tk.LEFT, fill=tk.X, expand=True, pady=(4, 2))
+        else:
+            cab.pack(fill=tk.X, pady=(0, 16))
+        self._cabecalho = cab
 
-    def _montar_numeros(self):
-        for w in self.frame_numeros.winfo_children():
-            w.destroy()
-        ativos = [u for u in self.usuarios if u.get("ativo", True)]
-        admins = [u for u in self.usuarios if u.get("papel") == PAPEL_ADMINISTRADOR]
-        abertos = sum(1 for i in self.app.issues if i.get("status") != "Fechado" and i.get("atribuido_para"))
-        cartoes = (
-            (Icone.PESSOAS, "pill_azul", "Usuários cadastrados", len(self.usuarios)),
-            (Icone.CHAVE, "pill_dourado", "Administradores", len(admins)),
-            (Icone.CHECK, "pill_verde", "Contas ativas", len(ativos)),
-            (Icone.RELOGIO, "pill_vermelho", "Problemas em aberto", abertos),
-        )
-        for col, (glifo, chave, titulo, valor) in enumerate(cartoes):
-            self.frame_numeros.columnconfigure(col, weight=1, uniform="num")
-            cartao = Cartao(self.frame_numeros, padding=(18, 16))
-            cartao.grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 8, 0 if col == 3 else 8))
-            c = cartao.corpo
-            QuadradoIcone(c, glifo, cores=TEMA[chave], tamanho=40).pack(side=tk.LEFT, padx=(0, 14))
-            t = tk.Frame(c, bg=c["bg"])
-            t.pack(side=tk.LEFT)
-            rotulo(t, espacar(titulo), 8, "semi", cor=TEMA["eyebrow"]).pack(anchor="w")
-            rotulo(t, str(valor), 20, "semi").pack(anchor="w")
+        migalhas = tk.Frame(cab, bg=bg)
+        migalhas.pack(anchor="w", pady=(0, 8))
+        inicio = tk.Label(migalhas, text="Início", bg=bg, fg=TEMA["texto_fraco"], font=fonte(10), cursor="hand2")
+        inicio.pack(side=tk.LEFT)
+        inicio.bind("<Button-1>", lambda e: self.app.abrir_tela_home())
+        tk.Label(migalhas, text=Icone.CHEVRON_DIREITA, bg=bg, fg=TEMA["texto_fraco"],
+                 font=(FONTE_ICONE, 7)).pack(side=tk.LEFT, padx=10)
+        tk.Label(migalhas, text="Gerenciar usuários", bg=bg, fg=TEMA["titulo"],
+                 font=fonte(10, "semi")).pack(side=tk.LEFT)
+
+        sobretitulo(cab, "Administração").pack(anchor="w", pady=(0, 4))
+        tk.Label(cab, text="Gerenciar usuários", bg=bg, fg=TEMA["titulo"],
+                 font=fonte(19, "semi")).pack(anchor="w")
+
+        self._linha_sub = tk.Frame(cab, bg=bg)
+        self._linha_sub.pack(fill=tk.X, pady=(2, 0))
+        self._lbl_sub = tk.Label(self._linha_sub, bg=bg, fg=TEMA["texto_fraco"], font=fonte(11), justify="left",
+                                 text="Contas de acesso, papéis e transferência de problemas entre a equipe.")
+        self._botoes = tk.Frame(self._linha_sub, bg=bg)
+        Botao(self._botoes, "Transferir problemas", variante="secundario", icone=Icone.TROCAR, altura=34,
+              tamanho_fonte=9, comando=self._abrir_transferir).pack(side=tk.LEFT, padx=(0, 8))
+        Botao(self._botoes, "Novo usuário", variante="primario", icone=Icone.ADICIONAR_PESSOA, altura=34,
+              tamanho_fonte=9, comando=self._novo_usuario).pack(side=tk.LEFT)
+        self._lbl_sub.grid(row=0, column=0, sticky="w")
+        self._posicionar_botoes(abaixo=False)
+        self._linha_sub.bind("<Configure>", self._ajustar_cabecalho, add="+")
+
+    def _posicionar_botoes(self, abaixo):
+        if abaixo == self._botoes_abaixo:
+            return
+        self._botoes_abaixo = abaixo
+        self._botoes.grid_forget()
+        if abaixo:
+            self._botoes.grid(row=1, column=0, sticky="w", pady=(8, 0))
+        else:
+            self._lbl_sub.configure(wraplength=0)
+            self._botoes.grid(row=0, column=1, sticky="w", padx=(20, 0))
+
+    def _ajustar_cabecalho(self, evento):
+        """Responsivo: botões ao lado do subtítulo se couberem; senão descem
+        e o subtítulo quebra linha na largura disponível."""
+        largura = evento.width
+        if largura <= 1:
+            return
+        abaixo = largura < self._largura_sub_natural() + self._botoes.winfo_reqwidth() + 20
+        self._posicionar_botoes(abaixo)
+        if abaixo:
+            self._lbl_sub.configure(wraplength=max(200, largura - 4))
+
+    def _largura_sub_natural(self):
+        if not hasattr(self, "_sub_natural"):
+            self._sub_natural = self._lbl_sub.winfo_reqwidth()
+        return self._sub_natural
 
     def _montar_corpo(self):
         corpo = tk.Frame(self.pagina, bg=TEMA["pagina"])
         corpo.pack(fill=tk.BOTH, expand=True)
-        corpo.columnconfigure(0, weight=3, uniform="corpo")
-        corpo.columnconfigure(1, weight=2, uniform="corpo")
-        corpo.rowconfigure(0, weight=1)
+        self._corpo = corpo
 
         lista = Cartao(corpo, padding=(16, 14), ajustar_altura=False)
-        lista.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        self._cartao_lista = lista
         c = lista.corpo
+        # [ Contas                        ]
+        # [ Busca            nº de contas ]
+        rotulo(c, "Contas", 13, "semi").pack(anchor="w", pady=(0, 8))
         topo = tk.Frame(c, bg=c["bg"])
         topo.pack(fill=tk.X, pady=(0, 10))
-        rotulo(topo, "Contas", 13, "semi").pack(side=tk.LEFT)
-        self._contagem = tk.Frame(topo, bg=c["bg"])
-        self._contagem.pack(side=tk.RIGHT)
         self.ent_busca = CampoArredondado(topo, placeholder="Buscar por nome, usuário, e-mail ou setor...",
                                           icone_esquerda=Icone.BUSCA, largura=320, altura=34,
                                           cor=TEMA["campo"], borda=TEMA["campo"])
-        self.ent_busca.pack(side=tk.RIGHT, padx=(0, 12))
+        self.ent_busca.pack(side=tk.LEFT)
+        self._contagem = tk.Frame(topo, bg=c["bg"])
+        self._contagem.pack(side=tk.RIGHT)
         self.ent_busca.entry.bind("<KeyRelease>", lambda e: self._preencher_lista())
 
         colunas = ("nome_usuario", "papel", "setor", "ativo", "problemas_atribuidos")
@@ -121,23 +197,98 @@ class PainelUsuarios(tk.Frame):
         tabela = tk.Frame(c, bg=c["bg"])
         tabela.pack(fill=tk.BOTH, expand=True)
         self.tree = ttk.Treeview(tabela, columns=colunas, show="tree headings", style="Cartao.Treeview")
-        self.tree.heading("#0", text=espacar("Nome"), anchor="w")
+        self.tree.heading("#0", anchor="w", command=self._alternar_ordem)  # clique: A→Z / Z→A
         self.tree.column("#0", width=260, anchor="w")
         for col, rot, largura in zip(colunas, rotulos, larguras):
             self.tree.heading(col, text=espacar(rot), anchor="w")
             self.tree.column(col, width=largura, anchor="w", stretch=col == "setor")
+        # largura mínima por coluna: em janela estreita aparece a rolagem
+        # horizontal em vez de as colunas ficarem espremidas/cortadas
+        self.tree.column("#0", minwidth=220, stretch=True)
+        for col, largura in zip(colunas, larguras):
+            self.tree.column(col, minwidth=largura)
         self.tree.tag_configure("inativo", foreground=TEMA["texto_fraco"])
         scrollbar = ttk.Scrollbar(tabela, orient=tk.VERTICAL, command=self.tree.yview,
                                   style="Fino.Vertical.TScrollbar")
-        self.tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll_h = ttk.Scrollbar(tabela, orient=tk.HORIZONTAL, command=self.tree.xview,
+                                 style="Fino.Horizontal.TScrollbar")
+        self.tree.configure(yscrollcommand=scrollbar.set, xscrollcommand=scroll_h.set)
+        tabela.rowconfigure(0, weight=1)
+        tabela.columnconfigure(0, weight=1)
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        scroll_h.grid(row=1, column=0, sticky="ew")
         self.tree.bind("<<TreeviewSelect>>", lambda e: self._mostrar_detalhes())
 
         detalhes = Cartao(corpo, padding=(22, 20), ajustar_altura=False)
-        detalhes.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
-        self.painel_detalhes = detalhes.corpo
+        self._cartao_detalhes = detalhes
+        self.painel_detalhes = self._area_rolavel(detalhes.corpo)
         self._detalhes_vazio()
+
+        self._ajustar_corpo(largura=LARGURA_EMPILHAR)  # layout inicial: lado a lado
+        corpo.bind("<Configure>", lambda e: self._ajustar_corpo(e.width), add="+")
+
+    def _ajustar_corpo(self, largura):
+        """Responsivo: lista e detalhes lado a lado; em janela estreita o
+        painel de detalhes desce para baixo da lista."""
+        empilhar = largura < LARGURA_EMPILHAR
+        if empilhar == self._empilhado:
+            return
+        self._empilhado = empilhar
+        corpo = self._corpo
+        self._cartao_lista.grid_forget()
+        self._cartao_detalhes.grid_forget()
+        if empilhar:
+            corpo.columnconfigure(0, weight=1, uniform="")
+            corpo.columnconfigure(1, weight=0, uniform="")
+            corpo.rowconfigure(0, weight=3)
+            corpo.rowconfigure(1, weight=2)
+            self._cartao_lista.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
+            self._cartao_detalhes.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
+        else:
+            corpo.columnconfigure(0, weight=3, uniform="corpo")
+            corpo.columnconfigure(1, weight=2, uniform="corpo")
+            corpo.rowconfigure(0, weight=1)
+            corpo.rowconfigure(1, weight=0)
+            self._cartao_lista.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+            self._cartao_detalhes.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
+
+    def _area_rolavel(self, pai):
+        """Frame com rolagem vertical (só aparece quando o conteúdo não
+        cabe) — em janela pequena as ações do usuário continuam alcançáveis.
+        O frame interno ocupa no mínimo a área visível, para o estado
+        "Selecione um usuário" continuar centralizado."""
+        bg = pai["bg"]
+        canvas = tk.Canvas(pai, bg=bg, highlightthickness=0, bd=0)
+        barra = ttk.Scrollbar(pai, orient=tk.VERTICAL, command=canvas.yview, style="Fino.Vertical.TScrollbar")
+        interno = tk.Frame(canvas, bg=bg)
+        janela = canvas.create_window(0, 0, window=interno, anchor="nw")
+        canvas.configure(yscrollcommand=barra.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        def ajustar(_evento=None):
+            largura, altura = canvas.winfo_width(), canvas.winfo_height()
+            if largura <= 1:
+                return
+            conteudo = interno.winfo_reqheight() if interno.pack_slaves() else 0
+            precisa_rolar = conteudo > altura
+            canvas.itemconfigure(janela, width=largura, height=max(altura, conteudo))
+            canvas.configure(scrollregion=(0, 0, largura, max(altura, conteudo)))
+            if precisa_rolar and not barra.winfo_manager():
+                barra.pack(side=tk.RIGHT, fill=tk.Y, before=canvas)
+            elif not precisa_rolar and barra.winfo_manager():
+                barra.pack_forget()
+                canvas.yview_moveto(0)
+
+        canvas.bind("<Configure>", ajustar, add="+")
+        interno.bind("<Configure>", lambda e: canvas.after_idle(ajustar), add="+")
+
+        def rolar(evento):
+            if barra.winfo_manager():
+                canvas.yview_scroll(int(-evento.delta / 120), "units")
+        canvas.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", rolar), add="+")
+        canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"), add="+")
+        return interno
 
     # ---------- dados ----------
     def _contar_problemas_atribuidos(self, nome):
@@ -163,15 +314,27 @@ class PainelUsuarios(tk.Frame):
 
     def _atualizar_lista(self):
         self.usuarios = carregar_usuarios()
-        self._montar_numeros()
+        self._preencher_lista()
+
+    @staticmethod
+    def _chave_nome(usuario):
+        """Ordem alfabética sem diferenciar maiúsculas nem acentos
+        (Ângela fica junto de Angelo, não no fim da lista)."""
+        nome = unicodedata.normalize("NFKD", usuario.get("nome") or usuario["nome_usuario"])
+        return "".join(ch for ch in nome if not unicodedata.combining(ch)).casefold()
+
+    def _alternar_ordem(self):
+        self._ordem_decrescente = not self._ordem_decrescente
         self._preencher_lista()
 
     def _preencher_lista(self):
         selecionado = self.tree.selection()
         self.tree.delete(*self.tree.get_children())
         busca = self.ent_busca.get().strip().lower()
+        seta = "▼" if self._ordem_decrescente else "▲"
+        self.tree.heading("#0", text=f"{espacar('Nome')}  {seta}")
         n = 0
-        for u in self.usuarios:
+        for u in sorted(self.usuarios, key=self._chave_nome, reverse=self._ordem_decrescente):
             campos = (u["nome_usuario"], u["nome"], u.get("email", ""), u.get("setor", ""))
             if busca and not any(busca in (c or "").lower() for c in campos):
                 continue
