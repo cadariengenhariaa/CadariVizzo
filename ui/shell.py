@@ -213,6 +213,14 @@ class BarraLateral(Cartao):
         na rede). Sem acesso a ele (rede fora / arquivo movido), mostra o
         resumo de ajuda e o caminho esperado."""
         if os.path.exists(CHAMADOS_EXE):
+            # confirmação: evita abrir o formulário por um clique acidental
+            if not messagebox.askyesno(
+                    "Abrir chamado",
+                    "Você será direcionado ao formulário de Abertura de Chamados "
+                    "da TI Cadari, para relatar um problema ou pedir suporte.\n\n"
+                    "Tem certeza de que deseja abrir um chamado?",
+                    icon="warning", default="no"):
+                return
             try:
                 os.startfile(CHAMADOS_EXE)
                 return
