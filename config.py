@@ -4,16 +4,18 @@ import os
 _DIR_PROJETO = os.path.dirname(os.path.abspath(__file__))
 
 # --- CONFIGURAÇÕES DE REDE E DIRETÓRIOS ---
-DB_DIR = r"Z:\Temporario\João Gabriel\Checklist de projetos issues"
+# Banco do app (arquivos JSON): db_issues, db_usuarios, db_clashes e db_anotacoes_pdf
+DB_DIR = r"Z:\Desenvolvimento\Projetos\Vizzo\banco"
 DB_FILE = os.path.join(DB_DIR, "db_issues.json")
+BACKUP_DIR = os.path.join(DB_DIR, "backups")  # cópias de segurança dos arquivos do banco
 LOGO_PATH = r"Z:\Biblioteca\Padronização\Cadari\Logo\Marca PNG\Marca_Cadari-01.png"
 OBRAS_FILE = r"Z:\Publico\RELAÇÃO DE PROJETOS.xlsm"  # cadastro de obras (col B, a partir de B7)
 PROJETOS_DIR = r"Z:\Projetos\Ativos"  # pasta de cada obra: PROJETOS_DIR\<Nº Cadari> (ex.: CA-1439A)
 SELOS_DIR = r"Z:\Biblioteca\Padronização\Cadari\SELOS"  # selos de aprovação (imagens) para carimbar pranchas
 # "Ajuda e suporte" (barra lateral) abre o formulário de abertura de chamados da Cadari
-CHAMADOS_EXE = r"Z:\Biblioteca\Padronização\Cadari\Processos BIM\Formulário de bugs\dist\Abertura de Chamados.exe"
-EMAIL_ADMIN_INICIAL = "bim2@cadariengenharia.com.br"  # bootstrap: vira administrador no 1º uso do app
-NOME_USUARIO_ADMIN_INICIAL = "JoaoGabriel"  # login (nome de usuário) da conta criada no bootstrap
+CHAMADOS_EXE = r"Z:\Biblioteca\Padronização\Cadari\Executaveis\Abertura de Chamados.exe"
+EMAIL_ADMIN_INICIAL = "ti@cadariengenharia.com.br"  # bootstrap: vira administrador no 1º uso do app
+NOME_USUARIO_ADMIN_INICIAL = "Bruno"  # login (nome de usuário) da conta criada no bootstrap
 
 # Identidade do app "Cadari Vizzo" — empacotada no próprio projeto (não na
 # rede Z:) para funcionar mesmo offline e ir junto no executável gerado.

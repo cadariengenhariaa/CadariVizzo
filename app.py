@@ -13,6 +13,7 @@ from tkinter import messagebox, ttk
 
 from PIL import Image, ImageTk
 
+from auth import sessao
 from auth.dialogs import DialogLogin, DialogTrocarSenha
 from auth.painel_usuarios import PainelUsuarios
 from auth.usuarios import carregar_usuarios, salvar_usuarios
@@ -67,12 +68,12 @@ class AppCDE(tk.Tk):
         self._aplicar_icone()
         self._aplicar_tema()  # já deixa o estilo ttk pronto para os Entry/Combobox do login
 
-        self.usuario_atual = None
-        dialogo_login = DialogLogin(self)
-        if dialogo_login.usuario is None:
-            return  # main.py não chama mainloop() quando usuario_atual continua None
-
-        self.usuario_atual = dialogo_login.usuario
+        self.usuario_atual = self._restaurar_sessao_salva()
+        if self.usuario_atual is None:
+            dialogo_login = DialogLogin(self)
+            if dialogo_login.usuario is None:
+                return  # main.py não chama mainloop() quando usuario_atual continua None
+            self.usuario_atual = dialogo_login.usuario
         CORRETOR.carregar_em_segundo_plano()  # dicionário pt pronto antes do 1º comentário
 
         self.geometry("1200x800")
@@ -146,10 +147,30 @@ class AppCDE(tk.Tk):
         self.barra_lateral_recolhida = not self.barra_lateral_recolhida
         self._atualizar_barras(so_lateral=True)
 
+    @staticmethod
+    def _restaurar_sessao_salva():
+        """Entra direto se houver sessão salva neste computador (o usuário
+        não clicou em Sair). Qualquer falha — rede Z: fora, banco
+        ilegível — cai para a tela de login normal."""
+        try:
+            usuarios = carregar_usuarios()
+            usuario = sessao.restaurar_sessao(usuarios)
+            if usuario is not None:
+                salvar_usuarios(usuarios)  # renova o prazo da sessão
+            return usuario
+        except Exception:
+            return None
+
     def sair(self):
         """Encerra a sessão e volta para a tela de login (trocar de usuário)."""
         if not messagebox.askyesno("Sair", "Encerrar a sessão e voltar para a tela de login?"):
             return
+        try:
+            usuarios = carregar_usuarios()
+            sessao.encerrar_sessao(usuarios)
+            salvar_usuarios(usuarios)
+        except Exception:
+            sessao.apagar_local()  # sem rede: ao menos esquece a sessão neste computador
         self.withdraw()
         dialogo = DialogLogin(self)
         if dialogo.usuario is None:
@@ -189,6 +210,7 @@ class AppCDE(tk.Tk):
             return
         dialogo = DialogTrocarSenha(self, usuario, obrigatoria=False)
         if dialogo.trocou:
+            sessao.criar_sessao(usuario)  # a troca derrubou as sessões; mantém esta conectada
             salvar_usuarios(usuarios)
             self.usuario_atual = usuario
             messagebox.showinfo("OK", "Senha alterada com sucesso.")

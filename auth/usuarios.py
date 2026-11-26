@@ -18,6 +18,7 @@ import os
 import re
 import secrets
 
+import banco_json
 import config
 from utils import agora_str
 
@@ -44,11 +45,7 @@ def _caminho_padrao():
 
 
 def carregar_usuarios(caminho=None):
-    caminho = caminho or _caminho_padrao()
-    if not os.path.exists(caminho):
-        return []
-    with open(caminho, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return banco_json.ler(caminho or _caminho_padrao())
 
 
 def listar_nomes_ativos():
@@ -62,10 +59,7 @@ def listar_nomes_ativos():
 
 
 def salvar_usuarios(usuarios, caminho=None):
-    caminho = caminho or _caminho_padrao()
-    os.makedirs(os.path.dirname(caminho), exist_ok=True)
-    with open(caminho, "w", encoding="utf-8") as f:
-        json.dump(usuarios, f, ensure_ascii=False, indent=2)
+    banco_json.gravar(caminho or _caminho_padrao(), usuarios, indent=2)
 
 
 # ---------- hashing de senha ----------
@@ -186,6 +180,7 @@ def trocar_senha(usuario, senha_nova):
     usuario["senha_hash"] = hash_
     usuario["senha_salt"] = salt
     usuario["deve_trocar_senha"] = False
+    usuario["sessoes"] = []  # senha nova derruba as sessões salvas (auth/sessao.py)
 
 
 def resetar_para_senha_temporaria(usuario):
@@ -197,6 +192,7 @@ def resetar_para_senha_temporaria(usuario):
     usuario["senha_hash"] = hash_
     usuario["senha_salt"] = salt
     usuario["deve_trocar_senha"] = True
+    usuario["sessoes"] = []  # reset do admin desconecta a conta em todos os computadores
     return senha_temporaria
 
 
@@ -226,6 +222,14 @@ def bootstrap_admin_inicial(usuarios):
     salvar."""
     if usuarios:
         return None
+    # Proteção (incidente de 26/11/2026): lista vazia pode ser a pasta da
+    # rede fora do ar ou o arquivo movido — nesses casos NÃO é 1º uso.
+    banco_json.garantir_acesso()
+    if banco_json.existe_backup("db_usuarios.json"):
+        raise banco_json.BancoIndisponivel(
+            "O banco de usuários (db_usuarios.json) não foi encontrado, mas existem "
+            f"backups dele em:\n{config.BACKUP_DIR}\n\n"
+            "Restaure o backup mais recente em vez de criar um banco novo.")
     senha_temporaria = _gerar_senha_temporaria()
     criar_usuario(
         usuarios, config.NOME_USUARIO_ADMIN_INICIAL, "Administrador",

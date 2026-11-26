@@ -170,3 +170,10 @@ if __name__ == "__main__":
         if nome.startswith("test_") and callable(funcao):
             funcao()
     print("TODOS OS TESTES DO PAINEL DE USUÁRIOS PASSARAM")
+
+
+def test_ordem_alfabetica_ignora_acentos_e_maiusculas():
+    from auth.painel_usuarios import PainelUsuarios
+    usuarios = [{"nome_usuario": n, "nome": n} for n in ("bruno", "Ângela", "carla", "Ana")]
+    nomes = [u["nome"] for u in sorted(usuarios, key=PainelUsuarios._chave_nome)]
+    assert nomes == ["Ana", "Ângela", "bruno", "carla"]
